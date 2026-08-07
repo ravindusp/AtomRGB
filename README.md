@@ -71,6 +71,10 @@ clicking its Dock item.
 
 ## Release build
 
+Download the shipped unsigned development build from the [AtomRGB 0.1 GitHub
+release](https://github.com/ravindusp/AtomRGB/releases/tag/v0.1), or download the
+[DMG directly](https://github.com/ravindusp/AtomRGB/releases/download/v0.1/AtomRGB-0.1.dmg).
+
 Build the versioned macOS app bundle and DMG:
 
 ```bash
@@ -80,8 +84,8 @@ open dist/AtomRGB-0.1.dmg
 ```
 
 The DMG uses a custom RGB-wave background, the AtomRGB logo watermark, and a
-drag-to-Applications layout. It is an unsigned development build. The generated
-`dist/AtomRGB-0.1.dmg` and checksum can be attached to a GitHub release.
+drag-to-Applications layout. It is an unsigned development build. The local
+artifact is generated at `dist/AtomRGB-0.1.dmg`.
 
 The repository keeps `AtomRGB.png` as the source artwork for the macOS icon.
 The README uses the smaller `AtomRGB.webp` copy, while the packaging script
