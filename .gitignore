@@ -13,5 +13,6 @@ docs/hardware/descriptors/*.raw
 .build/
 DerivedData/
 *.xcodeproj/xcuserdata/
+dist/
 __pycache__/
 *.pyc

@@ -6,6 +6,7 @@ import SwiftUI
 
 @main
 struct AtomRGBApp: App {
+    @NSApplicationDelegateAdaptor(AtomRGBAppDelegate.self) private var appDelegate
     @StateObject private var model = AtomLightingViewModel()
 
     var body: some Scene {
@@ -21,6 +22,18 @@ struct AtomRGBApp: App {
                     }
                 }
         }
+    }
+}
+
+/// Keeps the SwiftPM-launched executable discoverable like a normal macOS app.
+///
+/// SwiftPM does not create an `.app` bundle for `swift run`, so explicitly
+/// selecting the regular activation policy makes the running controller appear
+/// in the Dock and lets a Dock click bring its window back to the front.
+final class AtomRGBAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApplication.shared.setActivationPolicy(.regular)
+        NSApplication.shared.activate(ignoringOtherApps: true)
     }
 }
 
