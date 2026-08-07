@@ -40,7 +40,7 @@ public actor AtomHIDTransport: AtomExchangeing {
     private let device: IOHIDDevice
     private let inputBuffer: UnsafeMutablePointer<UInt8>
     private let dispatchQueue: DispatchQueue
-    private let logger: (@Sendable (String) -> Void)?
+    nonisolated private let logger: (@Sendable (String) -> Void)?
     private var pendingContinuation: CheckedContinuation<[UInt8], Error>?
     private var pendingCommand: AtomProtocol.Command?
     private var pendingTimeoutTask: Task<Void, Never>?
@@ -73,7 +73,17 @@ public actor AtomHIDTransport: AtomExchangeing {
         }
 
         self.isActivated = true
+        logger?(String(format: "HID open result=0x%08X interface=%@ usage=%@ inputBuffer=%d", openResult,
+                      selection.info.interfaceNumber.map(String.init) ?? "-",
+                      selection.info.usage.map { String(format: "0x%04X", $0) } ?? "-",
+                      AtomProtocol.frameLength))
+
+        // The dispatch queue is the modern equivalent of scheduling the
+        // device on a CFRunLoop. It must be configured before registering
+        // the callback and activating the device. Exchanges remain fully
+        // async; callers never block this queue waiting for an ACK.
         IOHIDDeviceSetDispatchQueue(selection.device, dispatchQueue)
+        logger?("input delivery configured: DispatchQueue(com.atomrgb.hid-input), CFRunLoop=none")
         IOHIDDeviceRegisterInputReportCallback(
             selection.device,
             inputBuffer,
@@ -81,10 +91,12 @@ public actor AtomHIDTransport: AtomExchangeing {
             Self.inputReportCallback,
             Unmanaged.passUnretained(self).toOpaque()
         )
+        logger?("input callback registered: bufferSize=\(AtomProtocol.frameLength)")
         IOHIDDeviceSetCancelHandler(selection.device) { [weak selectionDevice = selection.device] in
             _ = selectionDevice
         }
         IOHIDDeviceActivate(selection.device)
+        logger?("HID device activated; awaiting input reports")
     }
 
     deinit {
@@ -140,6 +152,28 @@ public actor AtomHIDTransport: AtomExchangeing {
         })
     }
 
+    /// Sends a validated output report without creating an ACK wait.
+    ///
+    /// This is intentionally separate from `exchange` for hardware
+    /// diagnostics: it answers whether TX changes the keyboard even when RX
+    /// delivery is unavailable. Incoming reports are still logged when a
+    /// logger was supplied, but are otherwise ignored because no exchange is
+    /// pending.
+    public func sendWithoutResponse(_ request: [UInt8]) throws {
+        guard request.count == AtomProtocol.frameLength else {
+            throw AtomHIDTransportError.invalidReportLength(request.count)
+        }
+        guard !isCancelled else {
+            throw AtomHIDTransportError.disconnected
+        }
+        guard pendingContinuation == nil else {
+            throw AtomHIDTransportError.busy
+        }
+
+        logger?("TX raw(no ACK): \(hex(request))")
+        try send(request)
+    }
+
     public func cancel() {
         isCancelled = true
         cancelPending(with: AtomHIDTransportError.disconnected)
@@ -159,6 +193,7 @@ public actor AtomHIDTransport: AtomExchangeing {
                 buffer.count
             )
         }
+        logger?(String(format: "IOHIDDeviceSetReport result=0x%08X", result))
         guard result == kIOReturnSuccess else {
             throw AtomHIDTransportError.writeFailed(result)
         }
@@ -178,7 +213,14 @@ public actor AtomHIDTransport: AtomExchangeing {
         cancelPending(with: AtomHIDTransportError.responseTimeout(expectedCommand.rawValue))
     }
 
-    private func handleInput(result: IOReturn, bytes: [UInt8]) {
+    private func handleInput(result: IOReturn, reportID: UInt32, bytes: [UInt8]) {
+        logger?(String(format: "RX callback result=0x%08X reportID=%u reportLength=%d raw=%@ pending=%@",
+                      result,
+                      reportID,
+                      bytes.count,
+                      bytes.isEmpty ? "-" : hex(bytes),
+                      pendingCommand.map { String(format: "%02X", $0.rawValue) } ?? "none"))
+
         guard result == kIOReturnSuccess else {
             cancelPending(with: AtomHIDTransportError.disconnected)
             return
@@ -203,15 +245,30 @@ public actor AtomHIDTransport: AtomExchangeing {
         result,
         _,
         _,
-        _,
+        reportID,
         report,
         reportLength in
 
         guard let context else { return }
         let transport = Unmanaged<AtomHIDTransport>.fromOpaque(context).takeUnretainedValue()
-        let bytes = Array(UnsafeBufferPointer(start: report, count: reportLength))
+        let bytes: [UInt8]
+        if reportLength == 0 {
+            bytes = []
+        } else {
+            bytes = Array(UnsafeBufferPointer(start: report, count: reportLength))
+        }
+
+        let dump = bytes
+            .map { String(format: "%02X", $0) }
+            .joined(separator: " ")
+        transport.logger?(String(format: "RAW RX result=0x%08X reportID=%u length=%d: %@",
+                                 result,
+                                 reportID,
+                                 reportLength,
+                                 dump.isEmpty ? "-" : dump))
+
         Task {
-            await transport.handleInput(result: result, bytes: bytes)
+            await transport.handleInput(result: result, reportID: reportID, bytes: bytes)
         }
     }
 

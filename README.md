@@ -47,6 +47,18 @@ swift run atomctl --write direction reverse
 swift run atomctl --write colorful on
 ```
 
+To separate TX from RX troubleshooting, inspect the confirmed raw probe with:
+
+```bash
+swift run atomctl raw-test
+swift run atomctl --write raw-test
+```
+
+The write form sends `55 01`, `55 05`, the known static-red `55 06` packet, and
+`55 02` without waiting for ACKs, using 20 ms gaps and a final 50 ms delay. It
+also logs HID open/setup details, every raw input callback, and each
+`IOHIDDeviceSetReport` result.
+
 The experimental SwiftUI app can be launched with:
 
 ```bash
@@ -62,12 +74,14 @@ clicking its Dock item.
 Build the versioned macOS app bundle and DMG:
 
 ```bash
+brew install create-dmg
 ./tools/build_dmg.sh
 open dist/AtomRGB-0.1.dmg
 ```
 
-The DMG is an unsigned development build. The generated `dist/AtomRGB-0.1.dmg`
-and checksum can be attached to a GitHub release.
+The DMG uses a custom RGB-wave background, the AtomRGB logo watermark, and a
+drag-to-Applications layout. It is an unsigned development build. The generated
+`dist/AtomRGB-0.1.dmg` and checksum can be attached to a GitHub release.
 
 The repository keeps `AtomRGB.png` as the source artwork for the macOS icon.
 The README uses the smaller `AtomRGB.webp` copy, while the packaging script

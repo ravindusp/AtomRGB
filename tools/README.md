@@ -34,6 +34,28 @@ sudo tools/diagnose_vendor_collection.sh
 
 This is a single descriptor-read attempt against the `0xFF00` collection. It must never be changed to send reports.
 
+## Raw USB endpoint probe
+
+After the native `IOHIDDeviceSetReport` path has been tested, isolate the
+transport layer with the libusb probe:
+
+```bash
+tools/libusb_interrupt_probe.sh
+```
+
+The probe opens VID/PID `0x5566:0x0008`, claims USB Interface 2 without
+detaching the macOS HID driver, sends the known `55 01` frame directly to
+interrupt OUT endpoint `0x05`, and reads interrupt IN endpoint `0x85`. It
+prints every libusb result, transfer length, and received byte. A full known
+static-red transaction is available only when explicitly requested:
+
+```bash
+tools/libusb_interrupt_probe.sh --static-red
+```
+
+This is an isolated diagnostic; it does not change AtomRGB's production HID
+transport.
+
 ## Packet diff
 
 Use the packet diff helper with two or more exported hex/JSON payloads:

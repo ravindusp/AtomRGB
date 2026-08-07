@@ -6,18 +6,23 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
 DIST_DIR="$ROOT_DIR/dist"
 APP_PATH="$DIST_DIR/AtomRGB.app"
-DMG_ROOT="$DIST_DIR/dmg-root"
+STAGING_DIR="$DIST_DIR/dmg-source"
 DMG_PATH="$DIST_DIR/AtomRGB-$VERSION.dmg"
+BACKGROUND_PATH="$DIST_DIR/AtomRGB-dmg-background.png"
 ICONSET_DIR="$DIST_DIR/AtomRGB.iconset"
 
 if [[ ! -f "$ROOT_DIR/AtomRGB.png" ]]; then
     print -u2 "Missing logo source: $ROOT_DIR/AtomRGB.png"
     exit 1
 fi
+if ! command -v create-dmg >/dev/null 2>&1; then
+    print -u2 "Missing create-dmg. Install it with: brew install create-dmg"
+    exit 1
+fi
 
 cd "$ROOT_DIR"
 mkdir -p "$DIST_DIR"
-rm -rf "$APP_PATH" "$DMG_ROOT" "$ICONSET_DIR" "$DMG_PATH"
+rm -rf "$APP_PATH" "$STAGING_DIR" "$ICONSET_DIR" "$DMG_PATH" "$BACKGROUND_PATH"
 
 print "Building AtomRGB $VERSION..."
 swift build -c release --product AtomRGBApp
@@ -50,15 +55,26 @@ if command -v codesign >/dev/null 2>&1; then
     codesign --deep --force --sign - "$APP_PATH" >/dev/null
 fi
 
-mkdir -p "$DMG_ROOT"
-cp -R "$APP_PATH" "$DMG_ROOT/"
-ln -s /Applications "$DMG_ROOT/Applications"
-hdiutil create \
-    -volname "AtomRGB $VERSION" \
-    -srcfolder "$DMG_ROOT" \
-    -ov \
-    -format UDZO \
-    "$DMG_PATH" >/dev/null
+swift "$ROOT_DIR/tools/compose_dmg_background.swift" \
+    "$ROOT_DIR/packaging/AtomRGB-dmg-background-base.png" \
+    "$ROOT_DIR/AtomRGB.png" \
+    "$BACKGROUND_PATH"
+
+mkdir -p "$STAGING_DIR"
+cp -R "$APP_PATH" "$STAGING_DIR/"
+create-dmg \
+    --volname "AtomRGB $VERSION" \
+    --background "$BACKGROUND_PATH" \
+    --window-pos 100 100 \
+    --window-size 1200 675 \
+    --text-size 16 \
+    --icon-size 128 \
+    --icon "AtomRGB.app" 300 355 \
+    --hide-extension "AtomRGB.app" \
+    --app-drop-link 900 355 \
+    --overwrite \
+    "$DMG_PATH" \
+    "$STAGING_DIR" >/dev/null
 
 shasum -a 256 "$DMG_PATH" | tee "$DMG_PATH.sha256"
 print "Created $DMG_PATH"

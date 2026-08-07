@@ -9,6 +9,7 @@ private enum Command: Sendable {
     case info
     case state
     case mutation(Mutation)
+    case rawTest
 }
 
 private enum Mutation: Sendable {
@@ -87,7 +88,44 @@ private struct AtomCLI {
             } else {
                 try printDryRun(for: mutation)
             }
+        case .rawTest:
+            if invocation.write {
+                try await runRawTest()
+            } else {
+                try printRawTestDryRun()
+            }
         }
+    }
+
+    private static func runRawTest() async throws {
+        let transport = try AtomHIDTransport.open(logger: logger)
+        let packets = rawTestPackets()
+
+        print("Running TX-only raw test (01 → 05 → 06 → 02); ACKs are not required.")
+        print("If the keyboard turns red, TX is working and the failure is in RX handling.")
+        for (index, packet) in packets.enumerated() {
+            try await transport.sendWithoutResponse(packet)
+            try await Task.sleep(for: index == packets.count - 1 ? .milliseconds(50) : .milliseconds(20))
+        }
+        print("TX-only raw test complete.")
+    }
+
+    private static func printRawTestDryRun() throws {
+        print("DRY RUN: no HID device opened and no report sent.")
+        print("Use --write raw-test to send the confirmed transaction without waiting for ACKs.")
+        print("Sequence: 55 01 → 55 05 → 55 06 (Static Red) → 55 02")
+        for packet in rawTestPackets() {
+            printFrame("TX", packet)
+        }
+    }
+
+    private static func rawTestPackets() -> [[UInt8]] {
+        [
+            AtomProtocol.makeSimpleCommand(.beginTransaction),
+            AtomProtocol.makeGetLightingRequest(),
+            staticRedFixture(),
+            AtomProtocol.makeSimpleCommand(.commitTransaction)
+        ]
     }
 
     private static func printInfo() {
@@ -231,6 +269,10 @@ private struct AtomCLI {
         case "state":
             guard arguments.count == 1 else { throw CLIError.usage }
             return Invocation(write: false, json: outputJSON, command: .state)
+        case "raw-test":
+            guard arguments.count == 1 else { throw CLIError.usage }
+            guard !outputJSON else { throw CLIError.message("--json is only supported with state") }
+            return Invocation(write: write, json: false, command: .rawTest)
         case "static":
             guard arguments.count == 2, let color = parseRGB(arguments[1]) else {
                 throw CLIError.message("static expects a six-digit RRGGBB value")
@@ -348,6 +390,7 @@ private enum CLIError: Error, CustomStringConvertible {
             Usage:
               atomctl info
               atomctl state [--json]
+              atomctl [--dry-run|--write] raw-test
               atomctl [--dry-run|--write] static RRGGBB
               atomctl [--dry-run|--write] brightness 0...100
               atomctl [--dry-run|--write] effect <effect>
