@@ -6,7 +6,8 @@ let package = Package(
     name: "AtomRGB",
     platforms: [.macOS(.v13)],
     products: [
-        .executable(name: "atomctl", targets: ["atomctl"])
+        .executable(name: "atomctl", targets: ["atomctl"]),
+        .executable(name: "AtomRGBApp", targets: ["AtomRGBApp"])
     ],
     targets: [
         .target(name: "AtomProtocol"),
@@ -21,6 +22,10 @@ let package = Package(
         .executableTarget(
             name: "atomctl",
             dependencies: ["HIDTransport"]
+        ),
+        .executableTarget(
+            name: "AtomRGBApp",
+            dependencies: ["AtomProtocol", "HIDTransport"]
         ),
         .testTarget(
             name: "AtomProtocolTests",

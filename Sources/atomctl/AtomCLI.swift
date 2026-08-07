@@ -41,7 +41,19 @@ private enum Mutation: Sendable {
 
 private struct Invocation {
     let write: Bool
+    let json: Bool
     let command: Command
+}
+
+private struct StatePayload: Encodable {
+    let effect: String
+    let effectID: UInt8
+    let brightness: UInt8
+    let speed: UInt8
+    let direction: UInt8
+    let colorful: Bool
+    let rgb: String
+    let rawFrame: String
 }
 
 @main
@@ -61,10 +73,10 @@ private struct AtomCLI {
         case .info:
             printInfo()
         case .state:
-            let transport = try AtomHIDTransport.open(logger: logger)
+            let transport = try AtomHIDTransport.open(logger: invocation.json ? nil : logger)
             let service = AtomLightingService(transport: transport)
             let state = try await service.refresh()
-            printState(state)
+            printState(state, asJSON: invocation.json)
         case .mutation(let mutation):
             if invocation.write {
                 let transport = try AtomHIDTransport.open(logger: logger)
@@ -144,7 +156,25 @@ private struct AtomCLI {
         ]
     }
 
-    private static func printState(_ state: AtomLightingState) {
+    private static func printState(_ state: AtomLightingState, asJSON: Bool = false) {
+        if asJSON {
+            let payload = StatePayload(
+                effect: state.effect.displayName,
+                effectID: state.effect.rawValue,
+                brightness: state.brightness,
+                speed: state.speed.rawValue,
+                direction: state.direction.rawValue,
+                colorful: state.colorful,
+                rgb: String(format: "%02X%02X%02X", state.color.red, state.color.green, state.color.blue),
+                rawFrame: hex(state.rawFrame)
+            )
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            if let data = try? encoder.encode(payload), let text = String(data: data, encoding: .utf8) {
+                print(text)
+            }
+            return
+        }
         print(String(format: "State: effect=%@ brightness=%d speed=0x%02X direction=0x%02X colorful=%@ rgb=%02X%02X%02X",
                      state.effect.displayName,
                      state.brightness,
@@ -168,6 +198,7 @@ private struct AtomCLI {
         var arguments = arguments
         var write = false
         var dryRun = false
+        var outputJSON = false
 
         arguments.removeAll { argument in
             if argument == "--write" {
@@ -176,6 +207,10 @@ private struct AtomCLI {
             }
             if argument == "--dry-run" {
                 dryRun = true
+                return true
+            }
+            if argument == "--json" {
+                outputJSON = true
                 return true
             }
             return false
@@ -191,40 +226,50 @@ private struct AtomCLI {
         switch command.lowercased() {
         case "info":
             guard arguments.count == 1 else { throw CLIError.usage }
-            return Invocation(write: false, command: .info)
+            guard !outputJSON else { throw CLIError.message("--json is only supported with state") }
+            return Invocation(write: false, json: false, command: .info)
         case "state":
             guard arguments.count == 1 else { throw CLIError.usage }
-            return Invocation(write: false, command: .state)
+            return Invocation(write: false, json: outputJSON, command: .state)
         case "static":
             guard arguments.count == 2, let color = parseRGB(arguments[1]) else {
                 throw CLIError.message("static expects a six-digit RRGGBB value")
             }
-            return Invocation(write: write, command: .mutation(.staticColor(color)))
+            guard !outputJSON else { throw CLIError.message("--json is only supported with state") }
+            return Invocation(write: write, json: false, command: .mutation(.staticColor(color)))
         case "brightness":
             guard arguments.count == 2, let value = Int(arguments[1]), (0...100).contains(value) else {
                 throw CLIError.message("brightness expects an integer from 0 through 100")
             }
-            return Invocation(write: write, command: .mutation(.brightness(UInt8(value))))
+            guard !outputJSON else { throw CLIError.message("--json is only supported with state") }
+            return Invocation(write: write, json: false, command: .mutation(.brightness(UInt8(value))))
         case "effect":
             guard arguments.count == 2, let effect = parseEffect(arguments[1]) else {
                 throw CLIError.message("unknown lighting effect")
             }
-            return Invocation(write: write, command: .mutation(.effect(effect)))
+            guard !outputJSON else { throw CLIError.message("--json is only supported with state") }
+            return Invocation(write: write, json: false, command: .mutation(.effect(effect)))
         case "speed":
             guard arguments.count == 2, let speed = parseSpeed(arguments[1]) else {
                 throw CLIError.message("speed expects maximum, fast, medium, slow, or minimum")
             }
-            return Invocation(write: write, command: .mutation(.speed(speed)))
+            guard !outputJSON else { throw CLIError.message("--json is only supported with state") }
+            return Invocation(write: write, json: false, command: .mutation(.speed(speed)))
         case "direction":
             guard arguments.count == 2, let direction = parseDirection(arguments[1]) else {
                 throw CLIError.message("direction expects normal or reverse")
             }
-            return Invocation(write: write, command: .mutation(.direction(direction)))
+            guard !outputJSON else { throw CLIError.message("--json is only supported with state") }
+            return Invocation(write: write, json: false, command: .mutation(.direction(direction)))
         case "colorful":
             guard arguments.count == 2 else { throw CLIError.message("colorful expects on or off") }
             switch arguments[1].lowercased() {
-            case "on": return Invocation(write: write, command: .mutation(.colorful(true)))
-            case "off": return Invocation(write: write, command: .mutation(.colorful(false)))
+            case "on":
+                guard !outputJSON else { throw CLIError.message("--json is only supported with state") }
+                return Invocation(write: write, json: false, command: .mutation(.colorful(true)))
+            case "off":
+                guard !outputJSON else { throw CLIError.message("--json is only supported with state") }
+                return Invocation(write: write, json: false, command: .mutation(.colorful(false)))
             default: throw CLIError.message("colorful expects on or off")
             }
         case "help", "--help", "-h":
@@ -302,7 +347,7 @@ private enum CLIError: Error, CustomStringConvertible {
             return """
             Usage:
               atomctl info
-              atomctl state
+              atomctl state [--json]
               atomctl [--dry-run|--write] static RRGGBB
               atomctl [--dry-run|--write] brightness 0...100
               atomctl [--dry-run|--write] effect <effect>

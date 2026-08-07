@@ -122,7 +122,7 @@ Exit criteria achieved in the supplied report:
 
 ### Phase 3 — First safe macOS replay
 
-Status: implementation in progress; hardware write remains explicitly gated behind `atomctl --write`
+Status: complete — static red replay succeeded and state was confirmed in a fresh read
 
 Actions:
 
@@ -140,7 +140,7 @@ This is Milestone M1 and the primary proof-of-concept gate.
 
 ### Phase 4 — Protocol module and `atomctl`
 
-Status: implementation in progress
+Status: complete for the global RGB MVP
 
 Keep these boundaries separate:
 
@@ -172,7 +172,9 @@ Exit criteria:
 
 ### Phase 5 — Effects and per-key RGB
 
-Implement global effects only after the first static-color hardware proof:
+Status: global-control implementation complete; hardware coverage is the next manual verification pass
+
+Implement and verify global effects only after the first static-color hardware proof:
 
 1. Effect IDs
 2. Speed
@@ -189,15 +191,18 @@ Exit criteria:
 
 ### Phase 6 — SwiftUI application
 
-Build the app on top of the proven CLI/protocol layer:
+Status: initial global-lighting surface implemented; polish and hardware verification remain
+
+The initial app is built on top of the proven CLI/protocol layer:
 
 1. Device detection and connection state
 2. Static color, brightness, and off
 3. Effects, speed, and direction
-4. Hotplug handling
-5. Per-key editor
-6. Local profiles and debounced live preview
-7. Diagnostics export
+4. Hotplug polling and reconnect
+5. Debounced live preview
+6. Diagnostics export via CLI JSON
+
+Per-key editing remains out of scope.
 
 Do not add macros, key remapping, firmware updates, wireless support, or integrations to the first release.
 
@@ -216,19 +221,18 @@ Do not add macros, key remapping, firmware updates, wireless support, or integra
 | M0 | HID collections and configuration descriptor fingerprint documented |
 | M1 | One captured RGB packet successfully replayed from macOS |
 | M2 | Arbitrary static colors, brightness, and off work |
-| M3 | Effects, speed, and direction are mapped |
+| M3 | Effects, speed, and direction are mapped in code and ready for hardware coverage |
 | M4 | All 63 per-key LEDs are mapped and controllable |
 | M5 | SwiftUI app controls the proven protocol and handles hotplug |
 | M6 | Diagnostics, documentation, signing, and packaging are complete |
 
 ## Immediate next actions
 
-1. Run pure protocol and service tests.
-2. Run `atomctl info` and confirm the exact Interface-2 candidate.
-3. Run `atomctl --dry-run static FF0000`.
-4. Obtain explicit approval before running the first `atomctl --write` static-red proof.
-5. Confirm the keyboard changes color and normal typing remains functional.
-6. Expand hardware verification to global effects, brightness, speed, direction, and Colorful.
+1. Verify green, blue, brightness, effects, speed, direction, and Colorful on hardware.
+2. Launch `swift run AtomRGBApp` and verify reconnect behavior.
+3. Install a full Xcode toolchain and run the XCTest targets.
+4. Archive the original Windows PCAPs if they become available.
+5. Package and sign a development macOS build.
 
 ## Stop conditions
 
