@@ -1,0 +1,29 @@
+# Root vendor-collection diagnostic
+
+Run date: 2026-08-07
+Command:
+
+```bash
+sudo -n tools/diagnose_vendor_collection.sh
+```
+
+Purpose: one read-only attempt to open the logical `0xFF00` collection and retrieve its report descriptor. No output or feature report command is permitted. The attempt uses the patched non-seizing HIDAPI build.
+
+Result:
+
+```text
+sudo: a password is required
+```
+
+The diagnostic could not be executed as root in this environment because non-interactive `sudo` requires a password.
+
+Non-root control run with the patched non-seizing build:
+
+```text
+Device opened
+Report Descriptor retrieved successfully
+Descriptor length: 216 bytes
+Descriptor SHA-256: 4dcb3bc4e1909cc34b009dbb0177f27d2443993cc2a693b2571788b528115e67
+```
+
+Conclusion: the earlier `kIOReturnNotPrivileged (0xE00002C1)` was associated with upstream HIDAPI's seize behavior. Root impact remains untested because `sudo` authentication was unavailable, but root is not currently required to proceed with the non-seizing build.

@@ -1,0 +1,19 @@
+diff --git a/mac/hid.c b/mac/hid.c
+--- a/mac/hid.c
++++ b/mac/hid.c
+@@ -473,7 +473,7 @@ int HID_API_EXPORT hid_init(void)
+ 	if (!hid_mgr) {
+ 		is_macos_10_10_or_greater = (kCFCoreFoundationVersionNumber >= 1151.16); /* kCFCoreFoundationVersionNumber10_10 */
+-		hid_darwin_set_open_exclusive(1); /* Backward compatibility */
++		hid_darwin_set_open_exclusive(0); /* AtomRGB: never seize HID devices */
+ 		return init_hid_manager();
+ 	}
+@@ -1059,7 +1059,7 @@ hid_device * HID_API_EXPORT hid_open_path(const char *path)
+ 	}
+ 
+ 	/* Open the IOHIDDevice */
+-	ret = IOHIDDeviceOpen(dev->device_handle, dev->open_options);
++	ret = IOHIDDeviceOpen(dev->device_handle, kIOHIDOptionsTypeNone);
+ 	if (ret != kIOReturnSuccess) {
+ 		register_global_error_format("hid_open_path: failed to open IOHIDDevice from mach entry: (0x%08X) %s", ret, mach_error_string(ret));
+ 		goto return_error;

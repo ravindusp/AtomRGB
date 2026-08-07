@@ -1,0 +1,42 @@
+# Native atomctl info
+
+Run date: 2026-08-07
+Command: `.build/arm64-apple-macosx/debug/atomctl info`
+
+The native IOHIDManager diagnostic found three collections for the VID/PID. This does not replace hidapitester for discovery: hidapitester exposes additional collections, including the vendor-defined `0xFF00` collection, that were not returned by this native enumeration pass.
+
+```text
+Found 3 HID collection(s) for VID 0x5566 PID 0x0008
+
+Collection 1
+  VID/PID:       0x5566:0x0008
+  Manufacturer:  ZXWMicroChip
+  Product:       Fantech Atom Pro Keyboard
+  Serial:        2021-09-09
+  Usage:         0x0001 / 0x0000
+  Interface:     -
+  Registry ID:   4294995700
+  Descriptor SHA: 73867a68eef832176527175d6277108de35cb5ecfa6e8638966d2fb1306bd0b5
+
+Collection 2
+  VID/PID:       0x5566:0x0008
+  Manufacturer:  ZXWMicroChip
+  Product:       Fantech Atom Pro Keyboard
+  Serial:        2021-09-09
+  Usage:         0x0001 / 0x0006
+  Interface:     -
+  Registry ID:   4294995706
+  Descriptor SHA: 4dcb3bc4e1909cc34b009dbb0177f27d2443993cc2a693b2571788b528115e67
+
+Collection 3
+  VID/PID:       0x5566:0x0008
+  Manufacturer:  ZXWMicroChip
+  Product:       Fantech Atom Pro Keyboard
+  Serial:        2021-09-09
+  Usage:         0x0001 / 0x0006
+  Interface:     -
+  Registry ID:   4294995702
+  Descriptor SHA: 5333cc3a23db1dd7a9e8303e2169a54a7070f69822fa503014834652c24410b6
+```
+
+The registry IDs are runtime identifiers and must not be used as stable production IDs.

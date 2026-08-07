@@ -1,0 +1,110 @@
+# MK912 HID enumeration
+
+Run date: 2026-08-07
+Host: Apple Silicon MacBook Air, arm64
+macOS build: Darwin 25.6.0 / xnu-12377.161.13~4
+Tool: hidapitester v20260807, hidapi 0.16.0
+Command: `hidapitester --vidpid 5566:0008 --list-detail`
+
+The keyboard is currently connected in wired USB mode. The complete output is preserved below; repeated paths represent separate HID collections exposed by the same physical interface.
+
+```text
+5566/0008: ZXWMicroChip - Fantech Atom Pro Keyboard
+  vendorId:      0x5566
+  productId:     0x0008
+  usagePage:     0x0001
+  usage:         0x0006
+  serial_number: 2021-09-09 
+  interface:     1 
+  bus_type:      USB (1) 
+  path: DevSrvsID:4294995702
+
+5566/0008: ZXWMicroChip - Fantech Atom Pro Keyboard
+  vendorId:      0x5566
+  productId:     0x0008
+  usagePage:     0x0001
+  usage:         0x0006
+  serial_number: 2021-09-09 
+  interface:     0 
+  bus_type:      USB (1) 
+  path: DevSrvsID:4294995706
+
+5566/0008: ZXWMicroChip - Fantech Atom Pro Keyboard
+  vendorId:      0x5566
+  productId:     0x0008
+  usagePage:     0xFF00
+  usage:         0x0000
+  serial_number: 2021-09-09 
+  interface:     0 
+  bus_type:      USB (1) 
+  path: DevSrvsID:4294995706
+
+5566/0008: ZXWMicroChip - Fantech Atom Pro Keyboard
+  vendorId:     0x5566
+  productId:     0x0008
+  usagePage:     0x0001
+  usage:         0x0002
+  serial_number: 2021-09-09 
+  interface:     0 
+  bus_type:      USB (1) 
+  path: DevSrvsID:4294995706
+
+5566/0008: ZXWMicroChip - Fantech Atom Pro Keyboard
+  vendorId:     0x5566
+  productId:     0x0008
+  usagePage:     0x0001
+  usage:         0x0001
+  serial_number: 2021-09-09 
+  interface:     0 
+  bus_type:      USB (1) 
+  path: DevSrvsID:4294995706
+
+5566/0008: ZXWMicroChip - Fantech Atom Pro Keyboard
+  vendorId:     0x5566
+  productId:     0x0008
+  usagePage:     0x000C
+  usage:         0x0001
+  serial_number: 2021-09-09 
+  interface:     0 
+  bus_type:      USB (1) 
+  path: DevSrvsID:4294995706
+
+5566/0008: ZXWMicroChip - Fantech Atom Pro Keyboard
+  vendorId:     0x5566
+  productId:     0x0008
+  usagePage:     0x0001
+  usage:         0x0080
+  serial_number: 2021-09-09 
+  interface:     0 
+  bus_type:      USB (1) 
+  path: DevSrvsID:4294995706
+
+5566/0008: ZXWMicroChip - Fantech Atom Pro Keyboard
+  vendorId:     0x5566
+  productId:     0x0008
+  usagePage:     0x0001
+  usage:         0x000C
+  serial_number: 2021-09-09 
+  interface:     0 
+  bus_type:      USB (1) 
+  path: DevSrvsID:4294995706
+
+5566/0008: ZXWMicroChip - Fantech Atom Pro Keyboard
+  vendorId:     0x5566
+  productId:     0x0008
+  usagePage:     0x0001
+  usage:         0x0000
+  serial_number: 2021-09-09 
+  interface:     2 
+  bus_type:      USB (1) 
+  path: DevSrvsID:4294995700
+```
+
+Initial interpretation:
+
+- Interface 1 is the standard keyboard collection.
+- Interface 0 exposes multiple collections, including a vendor-defined `0xFF00` collection, but the shared path could not be opened by hidapitester in this run.
+- Interface 2 exposes a generic data collection and was successfully opened for descriptor inspection. It is a strong configuration-interface candidate.
+- The `DevSrvsID` paths are runtime identifiers and must not be hardcoded in production.
+
+Recheck after applying the non-seizing HIDAPI patch: the same nine collections were enumerated. The order changed because the HID list is not stable, but Interface 2 remains present at `DevSrvsID:4294995700` with USB interface number `2`.

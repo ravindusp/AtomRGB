@@ -1,0 +1,7 @@
+# Interface 2 report descriptor
+
+Source: `hidapitester --open-path 'DevSrvsID:4294995700' --get-report-descriptor`
+
+```text
+05 01 09 00 A1 01 15 00 26 FF 00 19 00 29 08 95 40 75 08 81 02 19 01 29 08 95 40 75 08 91 02 C0
+```

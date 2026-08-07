@@ -1,0 +1,17 @@
+# Local vendor software and captures may have redistribution restrictions.
+research/vendor-software/
+captures/**/*.pcap
+captures/**/*.pcapng
+tools/.cache/
+
+# Generated hardware artifacts
+docs/hardware/descriptors/*.bin
+docs/hardware/descriptors/*.raw
+
+# macOS and build output
+.DS_Store
+.build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+__pycache__/
+*.pyc
