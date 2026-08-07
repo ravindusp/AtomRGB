@@ -1,5 +1,9 @@
 # Windows USBPcap + Wireshark capture workflow
 
+## Status
+
+The global RGB capture analysis is complete and recorded in `docs/protocol/protocol-notes.md`. The Windows utility addresses USB Interface 2 using 64-byte HID input/output reports, OUT endpoint `0x05`, IN endpoint `0x85`, and no HID Report ID. The original `.pcapng` files are not currently stored in this repository.
+
 For the complete installation and capture procedure, read [the detailed Windows capture guide](../../docs/research/windows-capture-guide.md).
 
 This workflow captures only normal RGB configuration traffic from the official Fantech MK912 Windows utility. Do not capture or replay firmware-update traffic.
@@ -75,10 +79,10 @@ For each candidate transfer, record:
 - Report length and raw payload
 - Whether the transfer occurs before or after the UI change
 
-The first protocol conclusion must state which interface the Fantech utility addresses. Interface 2 is the current macOS hypothesis and must be compared explicitly against the Windows capture metadata.
+The first protocol conclusion must state which interface the Fantech utility addresses. This has been confirmed as Interface 2; future captures should only extend coverage or preserve raw evidence.
 
 ## Capture index
 
 | File | Baseline | Action | Interface | Endpoint | Payload export | Notes |
 |---|---|---|---:|---|---|---|
-| pending | | | | | | |
+| Report-only analysis | global RGB actions | 2 | `0x05` OUT / `0x85` IN | not archived | `docs/protocol/protocol-notes.md` |

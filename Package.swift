@@ -9,8 +9,10 @@ let package = Package(
         .executable(name: "atomctl", targets: ["atomctl"])
     ],
     targets: [
+        .target(name: "AtomProtocol"),
         .target(
             name: "HIDTransport",
+            dependencies: ["AtomProtocol"],
             linkerSettings: [
                 .linkedFramework("IOKit"),
                 .linkedFramework("CoreFoundation")
@@ -19,6 +21,14 @@ let package = Package(
         .executableTarget(
             name: "atomctl",
             dependencies: ["HIDTransport"]
+        ),
+        .testTarget(
+            name: "AtomProtocolTests",
+            dependencies: ["AtomProtocol"]
+        ),
+        .testTarget(
+            name: "HIDTransportTests",
+            dependencies: ["AtomProtocol", "HIDTransport"]
         )
     ]
 )

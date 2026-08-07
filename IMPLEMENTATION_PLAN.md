@@ -17,18 +17,22 @@ Confirmed:
 - PID: `0x0008`
 - Wired USB mode is the initial scope
 
-Strong lead:
+Confirmed by the supplied Windows USBPcap analysis:
 
-- A ZiFriend ZA63 Pro is publicly documented with the same `0x5566:0x0008` identity.
+- RGB traffic uses USB Interface 2 / `ZXWCustom`.
+- OUT endpoint `0x05`, IN endpoint `0x85`.
+- HID input/output reports are exactly 64 bytes with no Report ID.
+- Host marker is `0x55`; device marker is `0xAA`.
+- Checksum is the sum of bytes `4...63` modulo 256, stored at byte `3`.
+- Lighting edits use `0x01 -> 0x05 -> 0x06 -> 0x02`.
+- Effect, brightness, speed, direction, Colorful, and RGB offsets are documented in `docs/protocol/protocol-notes.md`.
 
-Unknown and requiring experiments:
+Still intentionally unknown:
 
-- The configuration HID collection and descriptor fingerprint
-- Output versus feature report usage
-- Report IDs and packet lengths
-- RGB field order and offsets
-- Effect, brightness, speed, direction, and per-key encoding
-- Volatile versus onboard persistence behavior
+- Semantic names for commands `0x01` and `0x02`.
+- Meanings of bytes `20...26`.
+- Startup command families `0x07` and `0x08`.
+- Key remapping, macro, visualizer, firmware, and per-key RGB protocols.
 
 ## Safety rules
 
@@ -47,7 +51,7 @@ Unknown and requiring experiments:
 
 ### Phase 0 — Workspace and lab setup
 
-Status: in progress — local setup complete; Windows capture environment pending
+Status: complete for global RGB research; original raw Windows PCAP files are not stored in the repository
 
 Deliverables:
 
@@ -61,13 +65,13 @@ Exit criteria:
 
 - `hidapitester` is available on macOS, or a documented build path exists.
 - The keyboard is available in wired USB mode.
-- A Windows capture environment with Fantech software and USBPcap is available.
+- A Windows capture environment with Fantech software and USBPcap was used; the original raw captures are not yet archived here.
 
 Progress: the local `hidapitester` build completed successfully on Apple Silicon, and the connected keyboard has been enumerated without sending any reports.
 
 ### Phase 1 — Read-only MK912 HID fingerprint
 
-Status: in progress — Interface 2 is the active investigation target
+Status: complete — Interface 2 descriptor and macOS collection identity are documented
 
 Actions:
 
@@ -81,7 +85,7 @@ Actions:
 
 Exit criteria:
 
-- Interface 2 is fully documented as the current configuration-channel hypothesis.
+- Interface 2 is fully documented as the confirmed global-RGB configuration channel.
 - The `0xFF00` access result and one root diagnostic result are recorded.
 - Interface 2 can be reopened after reconnecting the keyboard.
 
@@ -90,11 +94,11 @@ Current findings:
 - Nine HID collections are exposed by the connected keyboard.
 - Interface 2 (`0x0001:0x0000`) opens successfully and exposes 64-byte input/output reports.
 - Interface 0 includes a `0xFF00:0x0000` vendor-defined collection. The unpatched HIDAPI open returned `0xE00002C1`; the patched non-seizing build opens the shared descriptor read-only.
-- Interface 2 is therefore the provisional configuration-interface candidate, not a confirmed protocol endpoint.
+- Interface 2 is the confirmed endpoint used by the Windows global-RGB traffic.
 
 ### Phase 2 — Controlled Windows traffic capture
 
-Status: pending Windows capture environment
+Status: complete for global RGB MVP; report supplied, raw `.pcapng` files pending archival
 
 Capture one variable at a time, in this order:
 
@@ -110,15 +114,15 @@ Store original captures privately unless redistribution is permitted. Record the
 
 Use the workflow in [`captures/windows/README.md`](captures/windows/README.md). Determine the addressed USB interface from the Windows transfer metadata, with special attention to Interface 2.
 
-Exit criteria:
+Exit criteria achieved in the supplied report:
 
-- At least one static-color capture is repeatable.
-- Each transfer has a known interface, report type, report ID, and length.
-- Dynamic bytes are distinguished from command fields.
+- Static-color and effect captures are decoded.
+- Transfers target Interface 2 with known report type, endpoints, report size, and implicit report ID 0.
+- Dynamic state fields and checksum behavior are distinguished.
 
 ### Phase 3 — First safe macOS replay
 
-Status: not started
+Status: implementation in progress; hardware write remains explicitly gated behind `atomctl --write`
 
 Actions:
 
@@ -136,7 +140,7 @@ This is Milestone M1 and the primary proof-of-concept gate.
 
 ### Phase 4 — Protocol module and `atomctl`
 
-Status: not started
+Status: implementation in progress
 
 Keep these boundaries separate:
 
@@ -147,11 +151,15 @@ AtomProtocol  ->  HIDTransport  ->  atomctl
 Initial commands:
 
 ```text
-atomctl list
 atomctl info
-atomctl static FF0000
-atomctl brightness 3
-atomctl off
+atomctl state
+atomctl --dry-run static FF0000
+atomctl --write static FF0000
+atomctl --dry-run brightness 50
+atomctl --dry-run effect wave
+atomctl --dry-run speed slow
+atomctl --dry-run direction reverse
+atomctl --dry-run colorful on
 ```
 
 Add golden packet fixtures and pure encoder tests before adding UI code.
@@ -164,15 +172,14 @@ Exit criteria:
 
 ### Phase 5 — Effects and per-key RGB
 
-Implement only after static RGB is stable:
+Implement global effects only after the first static-color hardware proof:
 
 1. Effect IDs
 2. Speed
 3. Direction
-4. Per-key packet chunking
-5. Empirical mapping of all 63 LEDs
-6. Volatile profile application
-7. Onboard save only after persistence behavior is understood
+4. Colorful flag
+
+Per-key packet chunking, the 63-LED map, profiles, and onboard save remain out of scope.
 
 Exit criteria:
 
@@ -216,13 +223,12 @@ Do not add macros, key remapping, firmware updates, wireless support, or integra
 
 ## Immediate next actions
 
-1. Install or build `hidapitester`.
-2. Connect the MK912 in wired mode.
-3. Run `tools/enumerate_mk912.sh`.
-4. Save its complete output to `docs/hardware/mk912-hid-enumeration.txt`.
-5. Dump and fingerprint each promising report descriptor.
-6. Keep `0xFF00` documented as a non-blocking HIDAPI/macOS access issue.
-7. Continue with Interface 2 and prepare the Windows capture environment before attempting any protocol write.
+1. Run pure protocol and service tests.
+2. Run `atomctl info` and confirm the exact Interface-2 candidate.
+3. Run `atomctl --dry-run static FF0000`.
+4. Obtain explicit approval before running the first `atomctl --write` static-red proof.
+5. Confirm the keyboard changes color and normal typing remains functional.
+6. Expand hardware verification to global effects, brightness, speed, direction, and Colorful.
 
 ## Stop conditions
 

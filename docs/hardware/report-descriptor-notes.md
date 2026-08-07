@@ -6,7 +6,7 @@ This document records descriptors discovered from the actual keyboard. Do not in
 
 | Interface/path | Usage page | Usage | Collection | Input size | Output size | Feature size | Descriptor SHA-256 | Assessment |
 |---|---:|---:|---|---:|---:|---:|---|---|
-| Interface 2 / `DevSrvsID:4294995700` | `0x0001` | `0x0000` | Generic data | 64 | 64 | 0 | `73867a68eef832176527175d6277108de35cb5ecfa6e8638966d2fb1306bd0b5` | Active configuration-channel hypothesis; opened successfully |
+| Interface 2 / `DevSrvsID:4294995700` | `0x0001` | `0x0000` | Generic data / `ZXWCustom` | 64 | 64 | 0 | `73867a68eef832176527175d6277108de35cb5ecfa6e8638966d2fb1306bd0b5` | Confirmed global-RGB interface by Windows capture analysis |
 | Interface 0 / `DevSrvsID:4294995706` | `0xFF00` | `0x0000` | Vendor-defined, shared composite interface | descriptor contains multiple collections | descriptor contains multiple collections | none observed | `4dcb3bc4e1909cc34b009dbb0177f27d2443993cc2a693b2571788b528115e67` | Openable with patched non-seizing HIDAPI; not the active target |
 | Interface 1 / `DevSrvsID:4294995702` | `0x0001` | `0x0006` | Keyboard | unknown | unknown | unknown | pending | Normal keyboard input; do not write |
 
@@ -56,11 +56,11 @@ Error: hid_open_path: failed to open IOHIDDevice from mach entry: (0xE00002C1) (
 
 The initial `0xE00002C1` result was produced by upstream HIDAPI's default macOS seize behavior. After applying `tools/patches/hidapi-macos-nonseize.patch`, the same read-only descriptor request opened successfully and returned the complete shared descriptor in `descriptors/interface-0-shared-report-descriptor.txt`.
 
-This remains documented as a macOS/HIDAPI access limitation for the unpatched toolchain, but it is not the current project blocker and is not evidence that the vendor-defined collection is required for RGB control. Interface 2 remains the active investigation target.
+This remains documented as a macOS/HIDAPI access limitation for the unpatched toolchain, but it is not the current project blocker and is not evidence that the vendor-defined collection is required for RGB control. The Windows report confirms that global RGB uses Interface 2 instead.
 
 ## Native diagnostic comparison
 
-The first native `atomctl info` run found three collections and included the interface-2 candidate, but did not return the vendor-defined `0xFF00` collection. The complete output is preserved in `native-atomctl-info.txt`. Until Windows traffic identifies the endpoint, keep hidapitester as the discovery authority and treat the native enumeration as a diagnostic transport foundation.
+The first native `atomctl info` run found three collections and included the interface-2 candidate, but did not return the vendor-defined `0xFF00` collection. The complete output is preserved in `native-atomctl-info.txt`. The native transport now selects Interface 2 by interface number, report sizes, product identity, usage, and descriptor hash.
 
 ## Permission recheck
 
@@ -72,13 +72,12 @@ After macOS keystroke/Input Monitoring access was granted, the enumeration was r
 - The SDK defines `kIOHIDOptionsTypeNone = 0x00` and `kIOHIDOptionsTypeSeizeDevice = 0x01`.
 - The local research build applies `tools/patches/hidapi-macos-nonseize.patch`.
 - The patched backend initializes non-exclusive mode and calls `IOHIDDeviceOpen(dev->device_handle, kIOHIDOptionsTypeNone)` directly.
-- No project source currently calls `IOHIDDeviceOpen` directly.
-- The project will use `kIOHIDOptionsTypeNone` explicitly in any future native transport implementation and will never seize the keyboard.
+- The native transport calls `IOHIDDeviceOpen` with `kIOHIDOptionsTypeNone` and never seizes the keyboard.
 
 ## Evidence
 
 - Enumeration source:
 - Descriptor files: `descriptors/interface-2-report-descriptor.txt`, `descriptors/interface-0-shared-report-descriptor.txt`
-- Reconnect behavior: pending
-- Selected configuration interface: provisional — interface 2
-- Reason for selection: it exposes 64-byte input/output reports and was successfully opened by hidapitester; this is not yet protocol proof.
+- Reconnect behavior: transport cancellation and state synchronization are implemented; physical hotplug validation remains pending.
+- Selected configuration interface: confirmed — interface 2 / `ZXWCustom`
+- Reason for selection: Windows captures use Interface 2 with 64-byte input/output reports, endpoints `0x05`/`0x85`, and no HID Report ID.
